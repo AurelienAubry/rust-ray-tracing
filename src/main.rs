@@ -9,7 +9,7 @@ use std::io::Write;
 
 const ASPECT_RATIO: f32 = 16.0 / 9.0;
 const IMAGE_WIDTH: u16 = 400;
-const IMAGE_HEIGHT: u16 = 200;
+const IMAGE_HEIGHT: u16 = ((IMAGE_WIDTH as f32) / ASPECT_RATIO) as u16;
 
 const VIEWPORT_WIDTH: f32 = 4.0;
 const VIEWPORT_HEIGHT: f32 = VIEWPORT_WIDTH / ASPECT_RATIO;
@@ -47,10 +47,29 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+fn hit_sphere(sphere_center: Point3, sphere_radius: f32, ray: &Ray) -> bool {
+    let origin_center = ray.origin() - sphere_center;
+    let a = ray.direction().dot(&ray.direction());
+    let b = 2.0 * ray.direction().dot(&origin_center);
+    let c = origin_center.dot(&origin_center) - sphere_radius * sphere_radius;
+
+    let discriminant = b * b - 4.0 * a * c;
+
+    discriminant > 0.0
+}
+
 fn ray_color(ray: &Ray) -> Color {
+    let white: Color = Color::new(1.0, 1.0, 1.0);
+    let blue: Color = Color::new(0.5, 0.7, 1.0);
+    let red: Color = Color::new(1.0, 0.0, 0.0);
+
+    if hit_sphere(Point3::new(0.0, 0.0, -1.0), 0.5, ray) {
+        return red;
+    }
+
     let unit_direction = unit_vector(ray.direction());
     let t = 0.5 * (unit_direction.y() + 1.0);
-    (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0)
+    (1.0 - t) * white + t * blue
 }
 
 fn write_pixel(file: &mut File, color: &Color) -> Result<()> {

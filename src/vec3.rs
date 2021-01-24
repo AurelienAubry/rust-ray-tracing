@@ -1,5 +1,4 @@
 use std::ops;
-use std::ops::{Div, Neg};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Vec3(f32, f32, f32);
