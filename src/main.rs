@@ -47,15 +47,19 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn hit_sphere(sphere_center: Point3, sphere_radius: f32, ray: &Ray) -> bool {
+fn hit_sphere(sphere_center: Point3, sphere_radius: f32, ray: &Ray) -> f32 {
     let origin_center = ray.origin() - sphere_center;
-    let a = ray.direction().dot(&ray.direction());
-    let b = 2.0 * ray.direction().dot(&origin_center);
-    let c = origin_center.dot(&origin_center) - sphere_radius * sphere_radius;
+    let a = ray.direction().length_squared();
+    let half_b = ray.direction().dot(&origin_center);
+    let c = origin_center.length_squared() - sphere_radius * sphere_radius;
 
-    let discriminant = b * b - 4.0 * a * c;
+    let discriminant = half_b * half_b - a * c;
 
-    discriminant > 0.0
+    if discriminant < 0.0 {
+        -1.0
+    } else {
+        (-half_b - discriminant.sqrt()) / a
+    }
 }
 
 fn ray_color(ray: &Ray) -> Color {
@@ -63,8 +67,12 @@ fn ray_color(ray: &Ray) -> Color {
     let blue: Color = Color::new(0.5, 0.7, 1.0);
     let red: Color = Color::new(1.0, 0.0, 0.0);
 
-    if hit_sphere(Point3::new(0.0, 0.0, -1.0), 0.5, ray) {
-        return red;
+    let sphere_center = Point3::new(0.0, 0.0, -1.0);
+    let t = hit_sphere(sphere_center, 0.5, ray);
+
+    if t > 0.0 {
+        let normal = unit_vector(ray.at(t) - sphere_center);
+        return 0.5 * Color::new(normal.x() + 1.0, normal.y() + 1.0, normal.z() + 1.0);
     }
 
     let unit_direction = unit_vector(ray.direction());
