@@ -1,7 +1,11 @@
+mod object;
 mod ray;
+mod sphere;
 mod vec3;
 
+use crate::object::{HitRecord, Hittable, HittableList};
 use crate::ray::Ray;
+use crate::sphere::Sphere;
 use crate::vec3::{unit_vector, Color, Point3, Vec3};
 use anyhow::{Context, Result};
 use std::fs::File;
@@ -15,6 +19,11 @@ const VIEWPORT_WIDTH: f32 = 4.0;
 const VIEWPORT_HEIGHT: f32 = VIEWPORT_WIDTH / ASPECT_RATIO;
 
 fn main() -> Result<()> {
+    // World
+    let mut world = HittableList::new();
+    world.add(Box::new(Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5)));
+    world.add(Box::new(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0)));
+
     // Camera
     let focal_length: f32 = 1.0;
     let origin = Point3::zero();
@@ -38,7 +47,7 @@ fn main() -> Result<()> {
                 origin,
                 lower_left_corner + u * horizontal_vec + v * vertical_vec,
             );
-            let color = ray_color(&ray);
+            let color = ray_color(&ray, &world);
 
             write_pixel(&mut output_file, &color).context("Failed to write pixel")?;
         }
@@ -47,32 +56,14 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn hit_sphere(sphere_center: Point3, sphere_radius: f32, ray: &Ray) -> f32 {
-    let origin_center = ray.origin() - sphere_center;
-    let a = ray.direction().length_squared();
-    let half_b = ray.direction().dot(&origin_center);
-    let c = origin_center.length_squared() - sphere_radius * sphere_radius;
-
-    let discriminant = half_b * half_b - a * c;
-
-    if discriminant < 0.0 {
-        -1.0
-    } else {
-        (-half_b - discriminant.sqrt()) / a
-    }
-}
-
-fn ray_color(ray: &Ray) -> Color {
+fn ray_color<H: Hittable>(ray: &Ray, world: &H) -> Color {
     let white: Color = Color::new(1.0, 1.0, 1.0);
     let blue: Color = Color::new(0.5, 0.7, 1.0);
     let red: Color = Color::new(1.0, 0.0, 0.0);
 
-    let sphere_center = Point3::new(0.0, 0.0, -1.0);
-    let t = hit_sphere(sphere_center, 0.5, ray);
-
-    if t > 0.0 {
-        let normal = unit_vector(ray.at(t) - sphere_center);
-        return 0.5 * Color::new(normal.x() + 1.0, normal.y() + 1.0, normal.z() + 1.0);
+    let mut hit_record = HitRecord::empty();
+    if world.hit(ray, 0.0, f32::MAX, &mut hit_record) {
+        return 0.5 * (hit_record.normal + Color::new(1.0, 1.0, 1.0));
     }
 
     let unit_direction = unit_vector(ray.direction());
