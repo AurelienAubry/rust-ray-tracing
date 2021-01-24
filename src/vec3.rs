@@ -16,15 +16,15 @@ impl Vec3 {
         Vec3(x, y, z)
     }
 
-    pub fn get_x(&self) -> f32 {
+    pub fn x(&self) -> f32 {
         self.0
     }
 
-    pub fn get_y(&self) -> f32 {
+    pub fn y(&self) -> f32 {
         self.1
     }
 
-    pub fn get_z(&self) -> f32 {
+    pub fn z(&self) -> f32 {
         self.2
     }
 
@@ -98,6 +98,15 @@ impl ops::Mul<f32> for Vec3 {
     }
 }
 
+// vecB = v * vecA
+impl ops::Mul<Vec3> for f32 {
+    type Output = Vec3;
+
+    fn mul(self, v: Vec3) -> Vec3 {
+        v * self
+    }
+}
+
 // vecA *= v
 impl ops::MulAssign<f32> for Vec3 {
     fn mul_assign(&mut self, v: f32) {
@@ -130,7 +139,7 @@ impl ops::Div<f32> for Vec3 {
     type Output = Vec3;
 
     fn div(self, v: f32) -> Self::Output {
-        Vec3(self.0 / v, self.1 / v, self.2 / v)
+        (1.0 / v) * self
     }
 }
 
