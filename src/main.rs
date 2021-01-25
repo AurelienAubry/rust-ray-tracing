@@ -12,6 +12,8 @@ use crate::sphere::Sphere;
 use crate::util::clamp;
 use crate::vec3::{unit_vector, Color, Point3, Vec3};
 use anyhow::{Context, Result};
+use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
+use rand::rngs::ThreadRng;
 use rand::Rng;
 use std::fs::File;
 use std::io::Write;
@@ -21,6 +23,7 @@ pub const IMAGE_WIDTH: u16 = 400;
 pub const IMAGE_HEIGHT: u16 = ((IMAGE_WIDTH as f32) / ASPECT_RATIO) as u16;
 
 pub const SAMPLES_PER_PIXEL: u16 = 100;
+pub const BOUNCE_LIMIT: u16 = 50;
 
 fn main() -> Result<()> {
     // World
@@ -39,7 +42,12 @@ fn main() -> Result<()> {
 
     let mut rng = rand::thread_rng();
 
-    for row in (0..IMAGE_HEIGHT).rev() {
+    let progress_bar = ProgressBar::new(IMAGE_HEIGHT as u64);
+    progress_bar.set_style(
+        ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] [{bar:40.cyan/blue}] ({pos}/{len} Row, ETA {eta})"),
+    );
+    for row in (0..IMAGE_HEIGHT).rev().progress_with(progress_bar) {
         //println!("Remaining row: {}", row);
         for col in 0..IMAGE_WIDTH {
             let mut pixel_color = Color::zero();
@@ -47,7 +55,7 @@ fn main() -> Result<()> {
                 let u = (col as f32 + rng.gen_range(0.0..1.0)) / (IMAGE_WIDTH - 1) as f32;
                 let v = (row as f32 + rng.gen_range(0.0..1.0)) / (IMAGE_HEIGHT - 1) as f32;
                 let ray = camera.get_ray(u, v);
-                pixel_color += ray_color(&ray, &world);
+                pixel_color += ray_color(&mut rng, &ray, &world, BOUNCE_LIMIT);
             }
 
             write_pixel(&mut output_file, &pixel_color, SAMPLES_PER_PIXEL)
@@ -58,14 +66,27 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn ray_color<H: Hittable>(ray: &Ray, world: &H) -> Color {
+fn ray_color<H: Hittable>(rng: &mut ThreadRng, ray: &Ray, world: &H, bounce_limit: u16) -> Color {
     let white: Color = Color::new(1.0, 1.0, 1.0);
     let blue: Color = Color::new(0.5, 0.7, 1.0);
     let red: Color = Color::new(1.0, 0.0, 0.0);
 
     let mut hit_record = HitRecord::empty();
-    if world.hit(ray, 0.0, f32::MAX, &mut hit_record) {
-        return 0.5 * (hit_record.normal + Color::new(1.0, 1.0, 1.0));
+
+    // If we've exceeded the ray bounce limit, no more light is gathered
+    if bounce_limit <= 0 {
+        return Color::zero();
+    }
+
+    if world.hit(ray, 0.001, f32::MAX, &mut hit_record) {
+        let target = hit_record.point + hit_record.normal + Vec3::random_unit_vector(rng);
+        return 0.5
+            * ray_color(
+                rng,
+                &Ray::new(hit_record.point, target - hit_record.point),
+                world,
+                bounce_limit - 1,
+            );
     }
 
     let unit_direction = unit_vector(ray.direction());
@@ -78,11 +99,12 @@ fn write_pixel(file: &mut File, color: &Color, samples_per_pixel: u16) -> Result
     let mut g = color.y();
     let mut b = color.z();
 
+    // Divide the color by the number of samples and gamma-correct for gamma=2.0.
     let scale = 1.0 / samples_per_pixel as f32;
 
-    r *= scale;
-    g *= scale;
-    b *= scale;
+    r = (scale * r).sqrt();
+    g = (scale * g).sqrt();
+    b = (scale * b).sqrt();
 
     let ir = (256.0 * clamp(r, 0.0, 0.999)) as u8;
     let ig = (256.0 * clamp(g, 0.0, 0.999)) as u8;

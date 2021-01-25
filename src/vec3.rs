@@ -1,3 +1,5 @@
+use rand::rngs::ThreadRng;
+use rand::Rng;
 use std::ops;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -45,6 +47,35 @@ impl Vec3 {
             self.2 * other.0 - self.0 * other.2,
             self.0 * other.1 - self.1 * other.0,
         )
+    }
+
+    pub fn random(rng: &mut ThreadRng) -> Vec3 {
+        Vec3(
+            rng.gen_range(0.0..1.0),
+            rng.gen_range(0.0..1.0),
+            rng.gen_range(0.0..1.0),
+        )
+    }
+
+    pub fn random_range(rng: &mut ThreadRng, min: f32, max: f32) -> Vec3 {
+        Vec3(
+            rng.gen_range(min..max),
+            rng.gen_range(min..max),
+            rng.gen_range(min..max),
+        )
+    }
+
+    pub fn random_in_unit_sphere(rng: &mut ThreadRng) -> Vec3 {
+        loop {
+            let v = Self::random_range(rng, -1.0, 1.0);
+            if v.length_squared() < 1.0 {
+                return v;
+            }
+        }
+    }
+
+    pub fn random_unit_vector(rng: &mut ThreadRng) -> Vec3 {
+        unit_vector(Self::random_in_unit_sphere(rng))
     }
 }
 
