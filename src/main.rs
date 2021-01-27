@@ -1,4 +1,5 @@
 mod camera;
+mod material;
 mod object;
 mod ray;
 mod sphere;
@@ -6,6 +7,7 @@ mod util;
 mod vec3;
 
 use crate::camera::Camera;
+use crate::material::{Lambertian, Material, Metal, Scatterable};
 use crate::object::{HitRecord, Hittable, HittableList};
 use crate::ray::Ray;
 use crate::sphere::Sphere;
@@ -28,8 +30,35 @@ pub const BOUNCE_LIMIT: u16 = 50;
 fn main() -> Result<()> {
     // World
     let mut world = HittableList::new();
-    world.add(Box::new(Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5)));
-    world.add(Box::new(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0)));
+
+    let material_ground = Lambertian::new(Color::new(0.8, 0.8, 0.0));
+    let material_center = Lambertian::new(Color::new(0.7, 0.3, 0.3));
+    let material_left = Metal::new(Color::new(0.8, 0.8, 0.8));
+    let material_right = Metal::new(Color::new(0.8, 0.6, 0.2));
+
+    world.add(Box::new(Sphere::new(
+        Point3::new(0.0, -100.5, -1.0),
+        100.0,
+        Material::Lambertian(material_ground),
+    )));
+
+    world.add(Box::new(Sphere::new(
+        Point3::new(0.0, 0.0, -1.0),
+        0.5,
+        Material::Lambertian(material_center),
+    )));
+
+    world.add(Box::new(Sphere::new(
+        Point3::new(-1.0, 0.0, -1.0),
+        0.5,
+        Material::Metal(material_left),
+    )));
+
+    world.add(Box::new(Sphere::new(
+        Point3::new(1.0, 0.0, -1.0),
+        0.5,
+        Material::Metal(material_right),
+    )));
 
     // Camera
     let camera = Camera::new();
@@ -79,14 +108,17 @@ fn ray_color<H: Hittable>(rng: &mut ThreadRng, ray: &Ray, world: &H, bounce_limi
     }
 
     if world.hit(ray, 0.001, f32::MAX, &mut hit_record) {
-        let target = hit_record.point + hit_record.normal + Vec3::random_unit_vector(rng);
-        return 0.5
-            * ray_color(
-                rng,
-                &Ray::new(hit_record.point, target - hit_record.point),
-                world,
-                bounce_limit - 1,
-            );
+        let mut scattered = Ray::new(Point3::zero(), Vec3::zero());
+        let mut attenuation = Color::zero();
+
+        if hit_record
+            .material
+            .scatter(ray, &hit_record, &mut attenuation, &mut scattered, rng)
+        {
+            return attenuation * ray_color(rng, &scattered, world, bounce_limit - 1);
+        }
+
+        return attenuation;
     }
 
     let unit_direction = unit_vector(ray.direction());
