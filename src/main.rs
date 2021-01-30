@@ -61,7 +61,13 @@ fn main() -> Result<()> {
     )));
 
     // Camera
-    let camera = Camera::new();
+    let camera = Camera::new(
+        Point3::new(-2.0, 2.0, 1.0),
+        Point3::new(0.0, 0.0, -1.0),
+        Vec3::new(0.0, 1.0, 0.0),
+        20.0,
+        ASPECT_RATIO,
+    );
 
     // Render
     let mut output_file = File::create("image.ppm").context("Failed to create output file")?;
