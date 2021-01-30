@@ -77,6 +77,11 @@ impl Vec3 {
     pub fn random_unit_vector(rng: &mut ThreadRng) -> Vec3 {
         unit_vector(Self::random_in_unit_sphere(rng))
     }
+
+    pub fn is_near_zero(&self) -> bool {
+        const EPS: f32 = 1e-8;
+        (self.0 < EPS) && (self.1 < EPS) && (self.2 < EPS)
+    }
 }
 
 pub fn unit_vector(v: Vec3) -> Vec3 {

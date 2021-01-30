@@ -60,7 +60,13 @@ impl Scatterable for Lambertian {
         scattered_ray: &mut Ray,
         rng: &mut ThreadRng,
     ) -> bool {
-        let scatter_direction = hit_record.normal + Vec3::random_unit_vector(rng);
+        let mut scatter_direction = hit_record.normal + Vec3::random_unit_vector(rng);
+
+        // Catch degenerate scatter direction
+        if scatter_direction.is_near_zero() {
+            scatter_direction = hit_record.normal;
+        }
+
         *scattered_ray = Ray::new(hit_record.point, scatter_direction);
         *attenuation = self.albedo;
         true
@@ -70,11 +76,16 @@ impl Scatterable for Lambertian {
 #[derive(Clone, Copy, Debug)]
 pub struct Metal {
     albedo: Color,
+    fuzz: f32,
 }
 
 impl Metal {
-    pub fn new(albedo: Color) -> Metal {
-        Metal { albedo }
+    pub fn new(albedo: Color, fuzz: f32) -> Metal {
+        let mut f = 1.0;
+        if fuzz < 1.0 {
+            f = fuzz
+        }
+        Metal { albedo, fuzz: f }
     }
 }
 
@@ -88,7 +99,10 @@ impl Scatterable for Metal {
         rng: &mut ThreadRng,
     ) -> bool {
         let reflected = reflect(unit_vector(in_ray.direction()), hit_record.normal);
-        *scattered_ray = Ray::new(hit_record.point, reflected);
+        *scattered_ray = Ray::new(
+            hit_record.point,
+            reflected + self.fuzz * Vec3::random_in_unit_sphere(rng),
+        );
         *attenuation = self.albedo;
         scattered_ray.direction().dot(&hit_record.normal) > 0.0
     }
