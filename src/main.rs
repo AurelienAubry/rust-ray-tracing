@@ -20,52 +20,25 @@ use rand::Rng;
 use std::fs::File;
 use std::io::Write;
 
-pub const ASPECT_RATIO: f32 = 16.0 / 9.0;
-pub const IMAGE_WIDTH: u16 = 400;
+pub const ASPECT_RATIO: f32 = 3.0 / 2.0;
+pub const IMAGE_WIDTH: u16 = 1200;
 pub const IMAGE_HEIGHT: u16 = ((IMAGE_WIDTH as f32) / ASPECT_RATIO) as u16;
 
-pub const SAMPLES_PER_PIXEL: u16 = 100;
+pub const SAMPLES_PER_PIXEL: u16 = 500;
 pub const BOUNCE_LIMIT: u16 = 50;
 
 fn main() -> Result<()> {
+    let mut rng = rand::thread_rng();
     // World
-    let mut world = HittableList::new();
+    let world = random_world(&mut rng);
 
-    let material_ground = Lambertian::new(Color::new(0.8, 0.8, 0.0));
-    let material_center = Lambertian::new(Color::new(0.1, 0.2, 0.5));
-    let material_left = Dielectric::new(1.5);
-    let material_right = Metal::new(Color::new(0.8, 0.6, 0.2), 1.0);
-
-    world.add(Box::new(Sphere::new(
-        Point3::new(0.0, -100.5, -1.0),
-        100.0,
-        Material::Lambertian(material_ground),
-    )));
-
-    world.add(Box::new(Sphere::new(
-        Point3::new(0.0, 0.0, -1.0),
-        0.5,
-        Material::Lambertian(material_center),
-    )));
-
-    world.add(Box::new(Sphere::new(
-        Point3::new(-1.0, 0.0, -1.0),
-        0.5,
-        Material::Dielectric(material_left),
-    )));
-
-    world.add(Box::new(Sphere::new(
-        Point3::new(1.0, 0.0, -1.0),
-        0.5,
-        Material::Metal(material_right),
-    )));
-
-    let look_from = Point3::new(3.0, 3.0, 2.0);
-    let look_at = Point3::new(0.0, 0.0, -1.0);
-    let v_up = Vec3::new(0.0, 1.0, 0.0);
-    let dist_to_focus = (look_from - look_at).length();
-    let aperture = 1.0;
     // Camera
+    let look_from = Point3::new(13.0, 2.0, 3.0);
+    let look_at = Point3::new(0.0, 0.0, 0.0);
+    let v_up = Vec3::new(0.0, 1.0, 0.0);
+    let dist_to_focus = 10.0;
+    let aperture = 0.1;
+
     let camera = Camera::new(
         look_from,
         look_at,
@@ -81,8 +54,6 @@ fn main() -> Result<()> {
     output_file.write_all(b"P3\n")?;
     output_file.write_all(format!("{} {}\n", IMAGE_WIDTH, IMAGE_HEIGHT).as_bytes())?;
     output_file.write_all(b"255\n")?;
-
-    let mut rng = rand::thread_rng();
 
     let progress_bar = ProgressBar::new(IMAGE_HEIGHT as u64);
     progress_bar.set_style(
@@ -155,4 +126,65 @@ fn write_pixel(file: &mut File, color: &Color, samples_per_pixel: u16) -> Result
     let ig = (256.0 * clamp(g, 0.0, 0.999)) as u8;
     let ib = (256.0 * clamp(b, 0.0, 0.999)) as u8;
     Ok(file.write_all(format!("{} {} {}\n", ir, ig, ib).as_bytes())?)
+}
+
+fn random_world(rng: &mut ThreadRng) -> HittableList {
+    let mut world = HittableList::new();
+
+    let ground_material = Material::Lambertian(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
+    world.add(Box::new(Sphere::new(
+        Point3::new(0.0, -1000.0, 0.0),
+        1000.0,
+        ground_material,
+    )));
+
+    for a in -11..11 {
+        for b in -11..11 {
+            let choose_mat = rng.gen::<f32>();
+            let center = Point3::new(
+                a as f32 + 0.9 * rng.gen::<f32>(),
+                0.2,
+                b as f32 + 0.9 * rng.gen::<f32>(),
+            );
+
+            if (center - Point3::new(4.0, 0.2, 0.0)).length() > 0.9 {
+                if choose_mat < 0.8 {
+                    let albedo = Color::random(rng) * Color::random(rng);
+                    let material = Material::Lambertian(Lambertian::new(albedo));
+                    world.add(Box::new(Sphere::new(center, 0.2, material)));
+                } else if choose_mat < 0.95 {
+                    let albedo = Color::random_range(rng, 0.5, 1.0);
+                    let fuzz = rng.gen_range(0.0..0.5) as f32;
+                    let material = Material::Metal(Metal::new(albedo, fuzz));
+                    world.add(Box::new(Sphere::new(center, 0.2, material)));
+                } else {
+                    let material = Material::Dielectric(Dielectric::new(1.5));
+                    world.add(Box::new(Sphere::new(center, 0.2, material)));
+                }
+            }
+        }
+    }
+
+    let material1 = Material::Dielectric(Dielectric::new(1.5));
+    world.add(Box::new(Sphere::new(
+        Point3::new(0.0, 1.0, 0.0),
+        1.0,
+        material1,
+    )));
+
+    let material2 = Material::Lambertian(Lambertian::new(Color::new(0.4, 0.2, 0.1)));
+    world.add(Box::new(Sphere::new(
+        Point3::new(-4.0, 1.0, 0.0),
+        1.0,
+        material2,
+    )));
+
+    let material3 = Material::Metal(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0));
+    world.add(Box::new(Sphere::new(
+        Point3::new(4.0, 1.0, 0.0),
+        1.0,
+        material3,
+    )));
+
+    world
 }
