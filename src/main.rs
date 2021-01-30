@@ -7,7 +7,7 @@ mod util;
 mod vec3;
 
 use crate::camera::Camera;
-use crate::material::{Lambertian, Material, Metal, Scatterable};
+use crate::material::{Dielectric, Lambertian, Material, Metal, Scatterable};
 use crate::object::{HitRecord, Hittable, HittableList};
 use crate::ray::Ray;
 use crate::sphere::Sphere;
@@ -21,7 +21,7 @@ use std::fs::File;
 use std::io::Write;
 
 pub const ASPECT_RATIO: f32 = 16.0 / 9.0;
-pub const IMAGE_WIDTH: u16 = 1280;
+pub const IMAGE_WIDTH: u16 = 400;
 pub const IMAGE_HEIGHT: u16 = ((IMAGE_WIDTH as f32) / ASPECT_RATIO) as u16;
 
 pub const SAMPLES_PER_PIXEL: u16 = 100;
@@ -32,8 +32,8 @@ fn main() -> Result<()> {
     let mut world = HittableList::new();
 
     let material_ground = Lambertian::new(Color::new(0.8, 0.8, 0.0));
-    let material_center = Lambertian::new(Color::new(0.7, 0.3, 0.3));
-    let material_left = Metal::new(Color::new(0.8, 0.8, 0.8), 0.3);
+    let material_center = Lambertian::new(Color::new(0.1, 0.2, 0.5));
+    let material_left = Dielectric::new(1.5);
     let material_right = Metal::new(Color::new(0.8, 0.6, 0.2), 1.0);
 
     world.add(Box::new(Sphere::new(
@@ -51,7 +51,7 @@ fn main() -> Result<()> {
     world.add(Box::new(Sphere::new(
         Point3::new(-1.0, 0.0, -1.0),
         0.5,
-        Material::Metal(material_left),
+        Material::Dielectric(material_left),
     )));
 
     world.add(Box::new(Sphere::new(
