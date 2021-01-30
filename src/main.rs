@@ -60,13 +60,20 @@ fn main() -> Result<()> {
         Material::Metal(material_right),
     )));
 
+    let look_from = Point3::new(3.0, 3.0, 2.0);
+    let look_at = Point3::new(0.0, 0.0, -1.0);
+    let v_up = Vec3::new(0.0, 1.0, 0.0);
+    let dist_to_focus = (look_from - look_at).length();
+    let aperture = 1.0;
     // Camera
     let camera = Camera::new(
-        Point3::new(-2.0, 2.0, 1.0),
-        Point3::new(0.0, 0.0, -1.0),
-        Vec3::new(0.0, 1.0, 0.0),
+        look_from,
+        look_at,
+        v_up,
         20.0,
         ASPECT_RATIO,
+        aperture,
+        dist_to_focus,
     );
 
     // Render
@@ -89,7 +96,7 @@ fn main() -> Result<()> {
             for s in 0..SAMPLES_PER_PIXEL {
                 let u = (col as f32 + rng.gen_range(0.0..1.0)) / (IMAGE_WIDTH - 1) as f32;
                 let v = (row as f32 + rng.gen_range(0.0..1.0)) / (IMAGE_HEIGHT - 1) as f32;
-                let ray = camera.get_ray(u, v);
+                let ray = camera.get_ray(u, v, &mut rng);
                 pixel_color += ray_color(&mut rng, &ray, &world, BOUNCE_LIMIT);
             }
 
